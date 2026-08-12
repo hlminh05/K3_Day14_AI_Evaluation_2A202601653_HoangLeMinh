@@ -264,6 +264,15 @@ hay generation?
 
 > *Câu trả lời:*
 
+Relevance là metric yếu nhất (0.603). Context Recall (0.897) và Context
+Precision (0.971) đều cao, nên trên toàn benchmark vấn đề nghiêng nhiều hơn về
+generation và giới hạn của word-overlap heuristic hơn là retrieval. Tuy nhiên,
+trace vẫn cho thấy retrieval failure cục bộ: A01 thiếu scope evidence và M03
+thiếu scholarship-withdrawal evidence. A01/A02 từ chối an toàn về mặt ý nghĩa
+nhưng không cover đủ required claims, còn M03 suy diễn sai scholarship effect;
+vì vậy cần sửa cả retrieval cho các case multi-hop và claim-evidence checklist
+cho generator.
+
 ### Exercise 3.3 — LLM-as-a-Judge Rubric Design
 
 Thiết kế rubric domain-specific cho Student Services. Mỗi mức phải đủ cụ thể để
@@ -278,7 +287,7 @@ Chọn 3–5 dimensions:
 - [x] Actionability
 - [x] Safety/privacy
 - [ ] Tone/clarity
-- [ ] Dimension khác: __________
+- [ ] Dimension khác: Không sử dụng
 
 | Score | Tiêu chí domain-specific | Ví dụ response |
 |---:|---|---|
@@ -301,16 +310,6 @@ verbosity bias và self-preference bằng cách nào?
 
 > *Câu trả lời:*
 
-Relevance là metric yếu nhất (0.603), trong khi Context Recall (0.897) và Context
-Precision (0.971) đều cao. Điều này gợi ý retriever nhìn chung lấy đúng evidence,
-nhưng generator/word-overlap heuristic làm giảm answer-side scores. A01 và A02
-đã từ chối an toàn về mặt ý nghĩa, song không lặp đủ wording của câu hỏi/reference
-nên Relevance/Completeness thấp. M03 là generation failure rõ hơn: retrieval có
-đủ bốn policy documents nhưng answer suy luận sai rằng course withdrawal không
-ảnh hưởng scholarship, bỏ qua attempted-versus-completed credit rule. Do đó ưu
-tiên cải thiện synthesis prompt/checklist cho multi-document claims, đồng thời
-calibrate lexical metrics bằng human labels cho các safe refusals.
-
 Position bias được giảm bằng cách hoán đổi thứ tự A/B và chấm thêm từng answer
 độc lập; score cuối dùng trung bình qua các order/judge runs. Verbosity bias được
 giảm bằng checklist required claims và quy định rõ độ dài không phải tiêu chí,
@@ -324,19 +323,41 @@ human review.
 Chỉ làm sau khi hoàn thành 3.1–3.3. Chọn hai framework trong RAGAS, DeepEval
 và TruLens; chạy hoặc thiết kế một so sánh có cùng input dataset.
 
-| Tiêu chí | Framework 1: ____ | Framework 2: ____ |
+**Phương pháp:** Dùng cùng 20 records trong `golden_dataset.json` và cùng frozen
+answers/contexts trong `artifacts/actual_answers.json`; không sinh lại answer.
+Cột RAGAS dùng profile RAGAS-inspired đã chạy trong lab. Cột DeepEval là thiết
+kế CI/pytest-style trên cùng metric values: từng case chỉ pass khi đồng thời đạt
+Faithfulness ≥ 0.80, Relevance ≥ 0.70, Completeness ≥ 0.75, Context Recall ≥ 0.80
+và Context Precision ≥ 0.80. Đây là so sánh workflow/decision rule được guide
+cho phép, không được trình bày như output từ package RAGAS/DeepEval chính thức.
+
+| Tiêu chí | Framework 1: RAGAS | Framework 2: DeepEval |
 |---|---|---|
-| Setup complexity | | |
-| Metrics available | | |
-| CI/CD integration | | |
-| Kết quả trên cùng dataset | | |
-| Insight rút ra | | |
+| Setup complexity | Phù hợp batch/offline RAG evaluation; cần chuyển QA, answer và contexts sang dataset schema rồi aggregate metrics. | Phù hợp test-case assertions; cấu hình từng metric threshold và chạy như test suite trong CI. |
+| Metrics available | Faithfulness, response relevance, context recall/precision và các RAG-oriented metrics. | Faithfulness, answer relevancy, contextual recall/precision; có thể bổ sung rubric-based custom/GEval checks. |
+| CI/CD integration | Theo dõi averages/slices và so baseline; cần tự định nghĩa aggregate regression gate. | Tự nhiên với per-case assertions/pytest; failure chỉ rõ case và metric không đạt. |
+| Kết quả trên cùng dataset | Profile lab: 14/20 pass; averages lần lượt F=0.785, R=0.603, C=0.790, Recall=0.897, Precision=0.971. | Với conjunctive gates đã nêu: 4/20 pass (`E02`, `M02`, `M05`, `M07`). Số case dưới từng gate: F=9, R=14, C=5, Recall=3, Precision=0. |
+| Insight rút ra | Continuous averages hữu ích để hiểu xu hướng và tách retrieval khỏi generation, nhưng aggregate pass có thể che một metric yếu. | Per-metric hard gates strict hơn và tốt cho deployment blocking, nhưng cần calibrate threshold để tránh false failure do lexical Relevance. |
 
 - Scores có nhất quán không?
 - Framework nào strict hơn và vì sao?
 - Hai framework có tìm ra cùng failure cases không?
 
 > *Phân tích:*
+
+Các score đầu vào được cố ý giữ giống nhau để cô lập khác biệt workflow, nên
+không dùng thí nghiệm này để kết luận hai implementation metric chính thức cho
+score giống nhau. Pass labels lại không nhất quán: RAGAS-style aggregate rule
+pass 14 cases, còn DeepEval-style conjunctive assertions chỉ pass 4. DeepEval
+strict hơn vì một metric dưới threshold đủ làm cả test fail, trong khi average
+có thể bù trừ giữa metrics.
+
+Hai profiles cùng tìm ra toàn bộ sáu failure hiện tại (`E03`, `M03`, `H04`,
+`A01`, `A02`, `A03`). Profile CI còn flag thêm mười case đang pass theo rule gốc:
+`E01`, `E04`, `E05`, `M01`, `M04`, `M06`, `H01`, `H02`, `H03`, `H05`. Phần lớn
+đến từ Relevance/Faithfulness threshold, nên trước production phải calibrate
+với human labels và dùng hard gates riêng cho policy/privacy thay vì mặc định
+coi mọi lexical miss là behavior failure.
 
 ### Exercise 3.5 — Retrieval Reranking (Bonus +5)
 
@@ -351,20 +372,36 @@ thay đổi Context Recall hay không.
 
 | ID | Recall before | Recall after | Precision before | Precision after | Delta Precision |
 |---|---:|---:|---:|---:|---:|
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| **Avg** | | | | | |
+| M02 | 0.914 | 0.914 | 0.950 | 1.000 | +0.050 |
+| M05 | 1.000 | 1.000 | 0.950 | 1.000 | +0.050 |
+| M07 | 1.000 | 1.000 | 0.917 | 1.000 | +0.083 |
+| A01 | 0.621 | 0.621 | 0.8875 | 1.000 | +0.1125 |
+| A02 | 0.739 | 0.739 | 0.8875 | 0.950 | +0.0625 |
+| **Avg** | **0.855** | **0.855** | **0.918** | **0.990** | **+0.072** |
+
+Reranker dùng overlap giữa user question và chunk, không dùng expected answer,
+để tránh gold leakage. Với cả năm case, danh sách sau rerank chứa đúng cùng năm
+chunks như trước và chỉ thay đổi thứ tự.
 
 **Tại sao Recall dự kiến không đổi?**
 
 > *Câu trả lời:*
 
+Context Recall trong evaluator lấy union tokens của toàn bộ retrieved chunks.
+Reranking không thêm hoặc xóa chunk nên union coverage không đổi; vì vậy Recall
+before/after bằng nhau ở từng case, dù chunk liên quan được đẩy lên rank cao hơn
+và rank-aware Precision tăng.
+
 **Khi nào reranking không đủ và cần sửa retriever/query/chunking?**
 
 > *Câu trả lời:*
+
+Reranking không đủ khi decisive evidence hoàn toàn vắng khỏi retrieved set, khi
+query không mang đủ tín hiệu cho một sub-question, chunk boundary tách condition
+khỏi conclusion, hoặc corpus/policy version bị thiếu hay cũ. A01 và A02 minh họa
+giới hạn này: Precision tăng nhưng Recall vẫn chỉ 0.621 và 0.739. Khi đó phải sửa
+query decomposition/expansion, chunking, retriever hoặc tăng candidate pool
+trước rerank; chỉ đổi thứ tự không thể tạo evidence mới.
 
 ---
 
@@ -378,11 +415,11 @@ Hoàn thành `reflection.md` bằng kết quả thật từ Exercise 3.2.
 
 Hoàn thành kiểm tra cuối trong khoảng 11:50–12:00.
 
-- [ ] Tất cả required tests pass.
-- [ ] `golden_dataset.json` validate thành công.
-- [ ] Exercise 3.1 hoàn thành trong file JSON và bảng kết quả phía trên.
-- [ ] Exercise 3.2 có năm metrics, aggregate report và ba cases thấp nhất.
-- [ ] Exercise 3.3 có rubric 1–5 và bias controls.
-- [ ] `reflection.md` có ba failure analyses và regression strategy.
-- [ ] Đã copy `template.py` thành `solution/solution.py`.
-- [ ] Exercise 3.4 và 3.5 chỉ làm nếu chọn bonus.
+- [x] Tất cả required tests pass.
+- [x] `golden_dataset.json` validate thành công.
+- [x] Exercise 3.1 hoàn thành trong file JSON và bảng kết quả phía trên.
+- [x] Exercise 3.2 có năm metrics, aggregate report và ba cases thấp nhất.
+- [x] Exercise 3.3 có rubric 1–5 và bias controls.
+- [x] `reflection.md` có ba failure analyses và regression strategy.
+- [x] Đã copy `template.py` thành `solution/solution.py`.
+- [x] Exercise 3.4 và 3.5 đã hoàn thành (bonus).
