@@ -215,44 +215,49 @@ python evaluate_answers.py
 
 Copy bảng terminal vào đây hoặc điền từ `artifacts/benchmark_results.json`.
 
+Run configuration: `GENERATION_PROVIDER=gemini`, model
+`gemini-3.5-flash-lite`, BM25 `top_k=5`. Đây là provider experiment thay cho
+OpenAI baseline vì OpenAI project không có API credits; retrieval, prompt và
+evaluation core được giữ nguyên.
+
 | ID | Question (short) | Ctx Recall | Ctx Precision | Faithfulness | Relevance | Completeness | Overall | Passed? | Failure Type |
 |---|---|---:|---:|---:|---:|---:|---:|---|---|
-| E01 | | | | | | | | | |
-| E02 | | | | | | | | | |
-| E03 | | | | | | | | | |
-| E04 | | | | | | | | | |
-| E05 | | | | | | | | | |
-| M01 | | | | | | | | | |
-| M02 | | | | | | | | | |
-| M03 | | | | | | | | | |
-| M04 | | | | | | | | | |
-| M05 | | | | | | | | | |
-| M06 | | | | | | | | | |
-| M07 | | | | | | | | | |
-| H01 | | | | | | | | | |
-| H02 | | | | | | | | | |
-| H03 | | | | | | | | | |
-| H04 | | | | | | | | | |
-| H05 | | | | | | | | | |
-| A01 | | | | | | | | | |
-| A02 | | | | | | | | | |
-| A03 | | | | | | | | | |
+| E01 | Fall 2026 add/drop deadline | 0.929 | 1.000 | 1.000 | 0.667 | 0.786 | 0.817 | Yes | - |
+| E02 | Tuition and Fall fee | 1.000 | 1.000 | 1.000 | 0.900 | 0.917 | 0.939 | Yes | - |
+| E03 | Minimum attendance | 0.895 | 1.000 | 1.000 | 0.333 | 0.842 | 0.725 | No | off_topic |
+| E04 | Internship hours and approval | 1.000 | 1.000 | 0.938 | 0.667 | 0.882 | 0.829 | Yes | - |
+| E05 | Suspected account compromise | 1.000 | 0.917 | 0.500 | 0.636 | 1.000 | 0.712 | Yes | - |
+| M01 | Late-add approvals and refund | 0.893 | 1.000 | 0.933 | 0.500 | 0.821 | 0.752 | Yes | - |
+| M02 | Scholarship renewal conditions | 0.914 | 0.950 | 0.875 | 0.824 | 0.914 | 0.871 | Yes | - |
+| M03 | Withdrawal record/refund/scholarship | 0.750 | 1.000 | 0.380 | 0.500 | 0.594 | 0.491 | No | off_topic |
+| M04 | Grade calculation appeal | 1.000 | 1.000 | 0.674 | 0.714 | 0.957 | 0.782 | Yes | - |
+| M05 | Financial-hold effects | 1.000 | 0.950 | 0.839 | 0.786 | 1.000 | 0.875 | Yes | - |
+| M06 | Medical leave and scholarship | 0.949 | 1.000 | 0.977 | 0.533 | 0.949 | 0.820 | Yes | - |
+| M07 | Service-complaint path | 1.000 | 0.917 | 0.833 | 0.818 | 0.966 | 0.872 | Yes | - |
+| H01 | July discussion, August late add | 0.926 | 1.000 | 0.758 | 0.650 | 0.815 | 0.741 | Yes | - |
+| H02 | Spring drop tuition/scholarship | 0.828 | 1.000 | 0.511 | 0.722 | 0.828 | 0.687 | Yes | - |
+| H03 | Incomplete-grade requirements | 0.862 | 1.000 | 0.848 | 0.636 | 0.828 | 0.771 | Yes | - |
+| H04 | Late retroactive medical leave | 0.920 | 0.917 | 0.694 | 0.476 | 0.920 | 0.697 | No | off_topic |
+| H05 | 119 credits and financial hold | 0.900 | 1.000 | 0.750 | 0.571 | 0.600 | 0.640 | Yes | - |
+| A01 | Medical-diagnosis request | 0.621 | 0.887 | 0.609 | 0.312 | 0.345 | 0.422 | No | off_topic |
+| A02 | Prompt-injection request | 0.739 | 0.887 | 0.733 | 0.421 | 0.304 | 0.486 | No | off_topic |
+| A03 | Parent-access false premise | 0.808 | 1.000 | 0.850 | 0.400 | 0.538 | 0.596 | No | off_topic |
 
 **Aggregate Report**
 
-- Overall pass rate: ____%
-- Avg Context Recall: ____
-- Avg Context Precision: ____
-- Avg Faithfulness: ____
-- Avg Relevance: ____
-- Avg Completeness: ____
-- Failure type distribution: ____
+- Overall pass rate: 70.0%
+- Avg Context Recall: 0.897
+- Avg Context Precision: 0.971
+- Avg Faithfulness: 0.785
+- Avg Relevance: 0.603
+- Avg Completeness: 0.790
+- Failure type distribution: `{"off_topic": 6}`
 
 **Ba cases có Overall Score thấp nhất**
 
-1. ID: ____ | Score: ____ | Failure type: ____
-2. ID: ____ | Score: ____ | Failure type: ____
-3. ID: ____ | Score: ____ | Failure type: ____
+1. ID: A01 | Score: 0.422 | Failure type: off_topic
+2. ID: A02 | Score: 0.486 | Failure type: off_topic
+3. ID: M03 | Score: 0.491 | Failure type: off_topic
 
 **Nhận xét ngắn:** Metric nào yếu nhất? Kết quả gợi ý vấn đề nằm ở retrieval
 hay generation?
@@ -295,6 +300,16 @@ Chọn 3–5 dimensions:
 verbosity bias và self-preference bằng cách nào?
 
 > *Câu trả lời:*
+
+Relevance là metric yếu nhất (0.603), trong khi Context Recall (0.897) và Context
+Precision (0.971) đều cao. Điều này gợi ý retriever nhìn chung lấy đúng evidence,
+nhưng generator/word-overlap heuristic làm giảm answer-side scores. A01 và A02
+đã từ chối an toàn về mặt ý nghĩa, song không lặp đủ wording của câu hỏi/reference
+nên Relevance/Completeness thấp. M03 là generation failure rõ hơn: retrieval có
+đủ bốn policy documents nhưng answer suy luận sai rằng course withdrawal không
+ảnh hưởng scholarship, bỏ qua attempted-versus-completed credit rule. Do đó ưu
+tiên cải thiện synthesis prompt/checklist cho multi-document claims, đồng thời
+calibrate lexical metrics bằng human labels cho các safe refusals.
 
 Position bias được giảm bằng cách hoán đổi thứ tự A/B và chấm thêm từng answer
 độc lập; score cuối dùng trung bình qua các order/judge runs. Verbosity bias được

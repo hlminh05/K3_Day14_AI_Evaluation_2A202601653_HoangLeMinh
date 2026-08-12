@@ -266,6 +266,60 @@ class OpenAIGenerator:
         return answer
 
 
+class GeminiGenerator:
+    """Generate answers through Gemini's OpenAI-compatible Chat API."""
+
+    base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+    def __init__(self, max_output_tokens: int = 300) -> None:
+        api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+        self.model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+        interval = os.getenv("GEMINI_MIN_REQUEST_INTERVAL", "4.1").strip()
+        if not api_key:
+            raise RuntimeError("GOOGLE_API_KEY is missing from .env")
+        if not self.model:
+            raise RuntimeError("GEMINI_MODEL is missing from .env")
+        try:
+            self.min_request_interval = max(0.0, float(interval))
+        except ValueError as exc:
+            raise RuntimeError(
+                "GEMINI_MIN_REQUEST_INTERVAL must be a number"
+            ) from exc
+        self.client = OpenAI(api_key=api_key, base_url=self.base_url)
+        self.max_output_tokens = max_output_tokens
+        self._last_request_at: float | None = None
+
+    def generate(self, prompt: str) -> str:
+        if self._last_request_at is not None:
+            elapsed = time.monotonic() - self._last_request_at
+            remaining = self.min_request_interval - elapsed
+            if remaining > 0:
+                time.sleep(remaining)
+        self._last_request_at = time.monotonic()
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=self.max_output_tokens,
+        )
+        content = response.choices[0].message.content
+        answer = content.strip() if isinstance(content, str) else ""
+        if not answer:
+            raise RuntimeError("Gemini returned an empty answer")
+        return answer
+
+
+def build_generator() -> TextGenerator:
+    """Build the configured provider without changing retrieval or prompting."""
+    provider = os.getenv("GENERATION_PROVIDER", "openai").strip().lower()
+    if provider == "openai":
+        return OpenAIGenerator()
+    if provider == "gemini":
+        return GeminiGenerator()
+    raise RuntimeError(
+        "GENERATION_PROVIDER must be either 'openai' or 'gemini'"
+    )
+
+
 @dataclass(frozen=True)
 class DomainResponse:
     question: str
@@ -299,7 +353,7 @@ class DomainAssistant:
         return cls(
             corpus_id,
             BM25Retriever(chunks),
-            generator if generator is not None else OpenAIGenerator(),
+            generator if generator is not None else build_generator(),
             top_k,
         )
 
